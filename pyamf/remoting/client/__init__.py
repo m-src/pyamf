@@ -397,28 +397,32 @@ class RemotingService(object):
 
         return envelope[request.id]
 
-    def execute(self):
+    def execute(self, set_response=True):
         """
         Builds, sends and handles the responses to all requests listed in
         C{self.requests}.
         """
-        requests = self.requests[:]
+        try:
+            body = remoting.encode(self.getAMFRequest(self.requests),
+                strict=self.strict)
 
-        for r in requests:
-            self.removeRequest(r)
+            http_request = urllib2.Request(self._root_url, body.getvalue(),
+                self._get_execute_headers())
 
-        body = remoting.encode(self.getAMFRequest(requests),
-            strict=self.strict)
+            if self.proxy_args:
+                http_request.set_proxy(*self.proxy_args)
 
-        http_request = urllib2.Request(self._root_url, body.getvalue(),
-            self._get_execute_headers())
+            envelope = self._getResponse(http_request)
 
-        if self.proxy_args:
-            http_request.set_proxy(*self.proxy_args)
+            if set_response:
+                for res_id, res_body in envelope:
+                    req = self.getRequest(res_id)
+                    req.setResponse(res_body)
 
-        envelope = self._getResponse(http_request)
-
-        return envelope
+            return envelope
+        finally:
+            for req in self.requests:
+                self.removeRequest(req)
 
     def _getResponse(self, http_request):
         """
