@@ -7,6 +7,7 @@ Remoting client implementation.
 @since: 0.1
 """
 
+from threading import Event
 import urllib2
 import urlparse
 
@@ -146,6 +147,7 @@ class RequestWrapper(object):
         self.id = id_
         self.service = service
         self.args = args
+        self.response_event = Event()
 
     def __str__(self):
         return str(self.id)
@@ -156,6 +158,7 @@ class RequestWrapper(object):
         """
         self.response = response
         self.result = self.response.body
+        self.response_event.set()
 
         if isinstance(self.result, remoting.ErrorFault):
             self.result.raiseException()
